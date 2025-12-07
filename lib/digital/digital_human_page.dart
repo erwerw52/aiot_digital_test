@@ -24,20 +24,20 @@ class _DigitalHumanPageState extends State<DigitalHumanPage> {
   void _listenToEvents() {
     _eventSubscription = _service.eventStream.listen((event) {
       final type = event['type'] as String?;
-      
+
       switch (type) {
         case 'play_start':
           setState(() {
             _statusText = '正在播放...';
           });
           break;
-          
+
         case 'play_end':
           setState(() {
             _statusText = '播放完成';
           });
           break;
-          
+
         case 'play_error':
           final error = event['error'] as String? ?? '未知錯誤';
           setState(() {
@@ -48,34 +48,35 @@ class _DigitalHumanPageState extends State<DigitalHumanPage> {
     });
   }
 
-  // 播放隨機動作示範
-  void _playRandomMotion() async {
+  // 播放 WAV 音頻檔案
+  void _playWavAudio() async {
     try {
-      await _service.startRandomMotion(true);
       setState(() {
-        _statusText = '正在播放隨機動作';
+        _statusText = '正在載入音頻...';
       });
-    } catch (e) {
-      _showSnackBar('播放動作失敗: $e');
-    }
-  }
 
-  // 播放指定動作示範
-  void _playMotion(String motionName) async {
-    try {
-      await _service.startMotion(motionName, true);
+      // 從 assets 載入音頻數據
+      final audioData = await rootBundle.load('assets/wav/orea.wav');
+      final bytes = audioData.buffer.asUint8List();
+
+      // 傳遞音頻數據給 Android 端播放
+      await _service.playAudioBytes(bytes, 'orea.wav');
+
       setState(() {
-        _statusText = '正在播放動作: $motionName';
+        _statusText = '正在播放音頻: orea.wav';
       });
     } catch (e) {
-      _showSnackBar('播放動作失敗: $e');
+      _showSnackBar('播放音頻失敗: $e');
+      setState(() {
+        _statusText = '播放失敗';
+      });
     }
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -130,64 +131,33 @@ class _DigitalHumanPageState extends State<DigitalHumanPage> {
                       ),
                     ),
                   ),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: _playWavAudio,
+                            icon: const Icon(Icons.volume_up),
+                            label: const Text('播放音頻'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
           // 控制面板
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    '動作控制',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: _playRandomMotion,
-                        icon: const Icon(Icons.shuffle),
-                        label: const Text('隨機動作'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepPurple,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () => _playMotion('打招呼'),
-                        icon: const Icon(Icons.waving_hand),
-                        label: const Text('打招呼'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () => _playMotion('點頭'),
-                        icon: const Icon(Icons.check_circle),
-                        label: const Text('點頭'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );

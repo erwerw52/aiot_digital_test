@@ -77,7 +77,18 @@ class DigitalHumanService {
       rethrow;
     }
   }
-
+  /// 播放音頻字節數據
+  Future<void> playAudioBytes(Uint8List audioBytes, String fileName) async {
+    try {
+      await _channel.invokeMethod('playAudioBytes', {
+        'audioBytes': audioBytes,
+        'fileName': fileName,
+      });
+    } catch (e) {
+      debugPrint('播放音頻字節失敗: $e');
+      rethrow;
+    }
+  }
   /// 停止音頻播放
   Future<void> stopAudio() async {
     try {
@@ -110,6 +121,64 @@ class DigitalHumanService {
     }
   }
 
+  /// 獲取可用動作列表
+  Future<List<String>> getAvailableMotions() async {
+    try {
+      final result = await _channel.invokeMethod<List>('getAvailableMotions');
+      return result?.cast<String>() ?? [];
+    } catch (e) {
+      debugPrint('獲取可用動作失敗: $e');
+      return [];
+    }
+  }
+
+  /// 檢查數字人是否已準備好
+  Future<bool> isReady() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('isReady');
+      return result ?? false;
+    } catch (e) {
+      debugPrint('檢查就緒狀態失敗: $e');
+      return false;
+    }
+  }
+
+  /// 設置音量（0.0 - 1.0）
+  Future<void> setVolume(double volume) async {
+    try {
+      await _channel.invokeMethod('setVolume', {'volume': volume});
+    } catch (e) {
+      debugPrint('設置音量失敗: $e');
+    }
+  }
+
+  /// 開始推送音頻流
+  Future<void> startPush() async {
+    try {
+      await _channel.invokeMethod('startPush');
+    } catch (e) {
+      debugPrint('開始推送失敗: $e');
+    }
+  }
+
+  /// 推送 PCM 音頻數據
+  Future<void> pushPcm(Uint8List pcmData) async {
+    try {
+      await _channel.invokeMethod('pushPcm', {'pcmData': pcmData});
+    } catch (e) {
+      debugPrint('推送音頻數據失敗: $e');
+    }
+  }
+
+  /// 停止推送音頻流
+  Future<void> stopPush() async {
+    try {
+      await _channel.invokeMethod('stopPush');
+    } catch (e) {
+      debugPrint('停止推送失敗: $e');
+    }
+  }
+
   /// 監聽數字人事件（下載進度、初始化狀態、播放狀態等）
   Stream<Map<String, dynamic>> get eventStream {
     return _eventChannel.receiveBroadcastStream().map((event) {
@@ -118,16 +187,5 @@ class DigitalHumanService {
       }
       return <String, dynamic>{};
     });
-  }
-
-  /// 獲取數字人視圖的 native view id
-  Future<int?> getDigitalHumanViewId() async {
-    try {
-      final result = await _channel.invokeMethod<int>('getViewId');
-      return result;
-    } catch (e) {
-      debugPrint('獲取視圖ID失敗: $e');
-      return null;
-    }
   }
 }

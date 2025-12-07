@@ -77,6 +77,7 @@ public class DUIX {
                 if (code == 0){
                     isReady = true;
                     if (mCallback != null){
+                        System.out.println("init ok");
                         mCallback.onEvent(Constant.CALLBACK_EVENT_INIT_READY, "init ok", modelInfo);
                     }
                 } else {
@@ -110,14 +111,16 @@ public class DUIX {
             @Override
             public void onMotionPlayStart(String name) {
                 if (mCallback != null){
-                    mCallback.onEvent(Constant.CALLBACK_EVENT_MOTION_START, "", null);
+                    System.out.println("Motion play start: " + name);
+                    mCallback.onEvent(Constant.CALLBACK_EVENT_MOTION_START, name, null);
                 }
             }
 
             @Override
             public void onMotionPlayComplete(String name) {
                 if (mCallback != null){
-                    mCallback.onEvent(Constant.CALLBACK_EVENT_MOTION_END, "", null);
+                    System.out.println("Motion play Complete: " + name);
+                    mCallback.onEvent(Constant.CALLBACK_EVENT_MOTION_END, name, null);
                 }
             }
         }, reporter);
@@ -197,8 +200,12 @@ public class DUIX {
      * 播放一只指定动作区间
      */
     public void startMotion(String name, boolean now) {
+        System.out.println("DUIX.startMotion called: name=" + name + ", now=" + now + ", mRenderThread=" + mRenderThread);
         if (mRenderThread != null) {
             mRenderThread.requireMotion(name, now);
+            System.out.println("DUIX.startMotion: requireMotion called");
+        } else {
+            System.out.println("DUIX.startMotion: mRenderThread is null!");
         }
     }
 

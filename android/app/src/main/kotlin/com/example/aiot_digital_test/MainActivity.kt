@@ -20,6 +20,7 @@ import ai.guiji.duix.sdk.client.Constant
 import ai.guiji.duix.sdk.client.VirtualModelUtil
 import ai.guiji.duix.sdk.client.render.DUIXRenderer
 import ai.guiji.duix.sdk.client.render.DUIXTextureView
+import ai.guiji.duix.sdk.client.loader.ModelInfo
 import java.io.File
 
 class MainActivity : FlutterActivity() {
@@ -30,6 +31,7 @@ class MainActivity : FlutterActivity() {
     private var textureView: DUIXTextureView? = null
     private var eventSink: EventChannel.EventSink? = null
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var availableMotions: List<String> = emptyList()
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -67,6 +69,15 @@ class MainActivity : FlutterActivity() {
                     duix?.playAudio(wavPath)
                     result.success(null)
                 }
+                "playAudioBytes" -> {
+                    val audioBytes = call.argument<ByteArray>("audioBytes")
+                    val fileName = call.argument<String>("fileName") ?: "temp.wav"
+                    if (audioBytes != null) {
+                        playAudioFromBytes(audioBytes, fileName, result)
+                    } else {
+                        result.error("INVALID_ARGUMENT", "audioBytes is null", null)
+                    }
+                }
                 "stopAudio" -> {
                     duix?.stopAudio()
                     result.success(null)
@@ -80,6 +91,34 @@ class MainActivity : FlutterActivity() {
                 "startRandomMotion" -> {
                     val immediate = call.argument<Boolean>("immediate") ?: true
                     duix?.startRandomMotion(immediate)
+                    result.success(null)
+                }
+                "getAvailableMotions" -> {
+                    android.util.Log.d("MainActivity", "getAvailableMotions called, returning: $availableMotions")
+                    result.success(availableMotions)
+                }
+                "isReady" -> {
+                    val ready = duix?.isReady() ?: false
+                    result.success(ready)
+                }
+                "setVolume" -> {
+                    val volume = call.argument<Double>("volume")?.toFloat() ?: 1.0f
+                    duix?.setVolume(volume)
+                    result.success(null)
+                }
+                "startPush" -> {
+                    duix?.startPush()
+                    result.success(null)
+                }
+                "pushPcm" -> {
+                    val pcmData = call.argument<ByteArray>("pcmData")
+                    if (pcmData != null) {
+                        duix?.pushPcm(pcmData)
+                    }
+                    result.success(null)
+                }
+                "stopPush" -> {
+                    duix?.stopPush()
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -207,23 +246,55 @@ class MainActivity : FlutterActivity() {
 
                 // 初始化 DUIX
                 duix = DUIX(applicationContext, modelName, renderer) { event, msg, info ->
+                    android.util.Log.d("MainActivity", "DUIX Callback: event=$event, msg=$msg, info=$info")
                     when (event) {
                         Constant.CALLBACK_EVENT_INIT_READY -> {
+                            android.util.Log.d("MainActivity", "INIT_READY callback, extracting motions from info: $info")
+                            
+                            // 提取可用動作列表
+                            if (info is ModelInfo) {
+                                val motionRegions = info.motionRegions
+                                android.util.Log.d("MainActivity", "ModelInfo motionRegions: $motionRegions")
+                                if (motionRegions != null) {
+                                    availableMotions = motionRegions.map { it.name }
+                                    android.util.Log.d("MainActivity", "Available motions extracted: $availableMotions")
+                                } else {
+                                    android.util.Log.e("MainActivity", "motionRegions is null!")
+                                }
+                            } else {
+                                android.util.Log.e("MainActivity", "info is not ModelInfo! Type: ${info?.javaClass?.name}")
+                            }
+                            
                             sendEvent(mapOf("type" to "init_ready"))
                             result.success(true)
                         }
                         Constant.CALLBACK_EVENT_INIT_ERROR -> {
+                            android.util.Log.e("MainActivity", "INIT_ERROR: $msg")
                             sendEvent(mapOf("type" to "init_error", "error" to msg))
                             result.success(false)
                         }
-                        "play.start" -> {
+                        Constant.CALLBACK_EVENT_MOTION_START -> {
+                            android.util.Log.d("MainActivity", "MOTION_START: $msg")
+                            sendEvent(mapOf("type" to "motion_start", "motion" to msg))
+                        }
+                        Constant.CALLBACK_EVENT_MOTION_END -> {
+                            android.util.Log.d("MainActivity", "MOTION_END: $msg")
+                            sendEvent(mapOf("type" to "motion_end", "motion" to msg))
+                        }
+                        Constant.CALLBACK_EVENT_AUDIO_PLAY_START -> {
+                            android.util.Log.d("MainActivity", "AUDIO_PLAY_START")
                             sendEvent(mapOf("type" to "play_start"))
                         }
-                        "play.end" -> {
+                        Constant.CALLBACK_EVENT_AUDIO_PLAY_END -> {
+                            android.util.Log.d("MainActivity", "AUDIO_PLAY_END")
                             sendEvent(mapOf("type" to "play_end"))
                         }
-                        "play.error" -> {
+                        Constant.CALLBACK_EVENT_AUDIO_PLAY_ERROR -> {
+                            android.util.Log.e("MainActivity", "AUDIO_PLAY_ERROR: $msg")
                             sendEvent(mapOf("type" to "play_error", "error" to msg))
+                        }
+                        else -> {
+                            android.util.Log.w("MainActivity", "Unknown event: $event, msg: $msg")
                         }
                     }
                 }
@@ -243,6 +314,23 @@ class MainActivity : FlutterActivity() {
             duix = null
             renderer = null
             textureView = null
+        }
+    }
+
+    private fun playAudioFromBytes(audioBytes: ByteArray, fileName: String, result: MethodChannel.Result) {
+        try {
+            // 將音頻數據寫入臨時文件
+            val tempFile = File(cacheDir, fileName)
+            tempFile.writeBytes(audioBytes)
+            
+            android.util.Log.d("MainActivity", "Audio file saved to: ${tempFile.absolutePath}, size: ${audioBytes.size} bytes")
+            
+            // 播放音頻
+            duix?.playAudio(tempFile.absolutePath)
+            result.success(null)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to play audio from bytes", e)
+            result.error("PLAY_AUDIO_ERROR", e.message, null)
         }
     }
 

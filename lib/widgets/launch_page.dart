@@ -196,8 +196,6 @@ class _LaunchPageState extends State<LaunchPage> {
                 ),
               ),
               const SizedBox(height: 48),
-              const CircularProgressIndicator(),
-              const SizedBox(height: 24),
               Text(
                 _statusMessage,
                 textAlign: TextAlign.center,
@@ -214,13 +212,6 @@ class _LaunchPageState extends State<LaunchPage> {
                   valueColor: const AlwaysStoppedAnimation<Color>(Colors.deepPurple),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  '${(_progress * 100).toStringAsFixed(1)}%',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
-                  ),
-                ),
               ],
             ],
           ),

@@ -208,12 +208,16 @@ public class RenderThread extends Thread {
     }
 
     public void requireMotion(String name, boolean now) {
+        System.out.println("RenderThread.requireMotion: name=" + name + ", now=" + now + ", mHandler=" + mHandler);
         if (mHandler != null) {
             Message message = new Message();
             message.what = MSG_REQUIRE_MOTION;
             message.obj = name;
             message.arg1 = now ? 0 : 1;
             mHandler.sendMessage(message);
+            System.out.println("RenderThread.requireMotion: message sent" + message);
+        } else {
+            System.out.println("RenderThread.requireMotion: mHandler is null!");
         }
     }
 
@@ -293,9 +297,11 @@ public class RenderThread extends Thread {
                 }
             }
             if (frame.startFlag){
+                System.out.println("RenderThread.doRender: Motion START detected! actionName=" + frame.actionName);
                 callback.onMotionPlayStart(frame.actionName);
             }
             if (frame.endFlag){
+                System.out.println("RenderThread.doRender: Motion END detected! actionName=" + frame.actionName);
                 callback.onMotionPlayComplete(frame.actionName);
             }
             if (mRenderSink != null) {
@@ -355,20 +361,44 @@ public class RenderThread extends Thread {
     }
 
     private void handleRequireMotion(String name, boolean now) {
+        System.out.println("RenderThread.handleRequireMotion: name=" + name + ", now=" + now);
+        System.out.println("RenderThread.handleRequireMotion: mModelInfo=" + mModelInfo);
+        
+        if (mModelInfo == null) {
+            System.out.println("RenderThread.handleRequireMotion: mModelInfo is null!");
+            return;
+        }
+        
+        java.util.List<ModelInfo.Region> motionRegions = mModelInfo.getMotionRegions();
+        System.out.println("RenderThread.handleRequireMotion: motionRegions size=" + (motionRegions != null ? motionRegions.size() : "null"));
+        
+        if (motionRegions != null) {
+            for (ModelInfo.Region region : motionRegions) {
+                System.out.println("RenderThread.handleRequireMotion: checking region name=" + region.name);
+            }
+        }
+        
         ModelInfo.Region matchRegion = null;
         for (ModelInfo.Region region : mModelInfo.getMotionRegions()){
             if (name != null && name.equals(region.name)){
                 matchRegion = region;
+                System.out.println("RenderThread.handleRequireMotion: FOUND matching region: " + region.name);
             }
         }
+        
         if (matchRegion != null){
+            System.out.println("RenderThread.handleRequireMotion: matchRegion found, frames count=" + matchRegion.frames.size());
             if (now){
                 prepareActionRegion = matchRegion;
                 requireMotion = true;
+                System.out.println("RenderThread.handleRequireMotion: set requireMotion=true");
             } else {
                 Logger.d("在播放队列最后插入动作区间region: " + matchRegion);
                 mPreviewQueue.addAll(matchRegion.frames);
+                System.out.println("RenderThread.handleRequireMotion: added frames to queue");
             }
+        } else {
+            System.out.println("RenderThread.handleRequireMotion: NO matching region found for name: " + name);
         }
     }
 
@@ -413,6 +443,7 @@ public class RenderThread extends Thread {
                     break;
                 case MSG_REQUIRE_MOTION:
                     String name = (String)msg.obj;
+                    System.out.println("RenderHandler.handleMessage: MSG_REQUIRE_MOTION received, name=" + name);
                     render.handleRequireMotion(name, msg.arg1 == 0);
                     break;
                 case MSG_REQUIRE_MOTION_RANDOM:
